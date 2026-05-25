@@ -1,0 +1,133 @@
+%% =====================================================================
+%% Encontrar raíces
+%% =====================================================================
+clear; clc; close all;
+% --- 1. DATOS DE ENTRADA Y MATRICES DEL SPLINE ---
+f_hz = [100, 120, 145, 170, 200, 235, 270, 310, 355, 405, 460, 520, 585, ...
+   655, 730, 810, 895, 985, 1080, 1180, 1290, 1410, 1540, 1680, 1830, ...
+   1990, 2160, 2340, 2530, 2730];
+z_ohm = [152.3, 149.1, 146.8, 144.9, 142.0, 139.5, 137.9, 136.1, 134.8, 133.6, ...
+   132.7, 131.9, 131.4, 131.1, 130.9, 131.0, 131.3, 131.9, 132.7, 133.8, ...
+   135.2, 136.9, 138.9, 141.1, 143.5, 146.1, 149.0, 152.2, 155.6, 159.2];
+n = length(f_hz); h = diff(f_hz);
+A = zeros(n, n); A(1,1) = 1; A(n,n) = 1;
+for i = 2:n-1
+   A(i, i-1) = h(i-1); A(i, i) = 2*(h(i-1) + h(i)); A(i, i+1) = h(i);
+end
+b_vec = zeros(n, 1);
+for i = 2:n-1
+   b_vec(i) = (3/h(i))*(z_ohm(i+1) - z_ohm(i)) - (3/h(i-1))*(z_ohm(i) - z_ohm(i-1));
+end
+c = A \ b_vec;
+b_coef = zeros(n-1, 1); d_coef = zeros(n-1, 1);
+for i = 1:n-1
+   d_coef(i) = (c(i+1) - c(i)) / (3*h(i));
+   b_coef(i) = (z_ohm(i+1) - z_ohm(i))/h(i) - h(i)*(2*c(i) + c(i+1))/3;
+end
+% --- PARÁMETROS DE BÚSQUEDA ---
+Z_th = 150;
+tol = 1e-6;
+max_iter = 100;
+%% --- 2. PROCESAMIENTO EN LÍNEA: RAÍZ 1 (BAJAS FRECUENCIAS) ---
+% A. Bisección [100, 200]
+a1 = 100; b1 = 200; iter1_bis = 0;
+while (b1 - a1)/2 > tol && iter1_bis < max_iter
+   mid = (a1 + b1)/2;
+   % Evaluar spline en 'a1' y 'mid'
+   idx_a = find(f_hz <= a1, 1, 'last'); if idx_a >= n, idx_a = n-1; end
+   g_a = (z_ohm(idx_a) + b_coef(idx_a)*(a1-f_hz(idx_a)) + c(idx_a)*(a1-f_hz(idx_a))^2 + d_coef(idx_a)*(a1-f_hz(idx_a))^3) - Z_th;
+   idx_m = find(f_hz <= mid, 1, 'last'); if idx_m >= n, idx_m = n-1; end
+   g_m = (z_ohm(idx_m) + b_coef(idx_m)*(mid-f_hz(idx_m)) + c(idx_m)*(mid-f_hz(idx_m))^2 + d_coef(idx_m)*(mid-f_hz(idx_m))^3) - Z_th;
+  
+   if g_m == 0, break; end
+   if sign(g_a) == sign(g_m), a1 = mid; else, b1 = mid; end
+   iter1_bis = iter1_bis + 1;
+end
+r1_bis = (a1 + b1)/2;
+% B. Newton-Raphson (Semilla: 110)
+r1_nw = 110; iter1_nw = 0;
+for k = 1:max_iter
+   idx = find(f_hz <= r1_nw, 1, 'last'); if idx >= n, idx = n-1; end
+   dx = r1_nw - f_hz(idx);
+   g = (z_ohm(idx) + b_coef(idx)*dx + c(idx)*dx^2 + d_coef(idx)*dx^3) - Z_th;
+   dg = b_coef(idx) + 2*c(idx)*dx + 3*d_coef(idx)*dx^2;
+   paso = g / dg;
+   r1_nw = r1_nw - paso;
+   iter1_nw = iter1_nw + 1;
+   if abs(paso) < tol, break; end
+end
+%% --- 3. PROCESAMIENTO EN LÍNEA: RAÍZ 2 (ALTAS FRECUENCIAS) ---
+% A. Bisección [2000, 2500]
+a2 = 2000; b2 = 2500; iter2_bis = 0;
+while (b2 - a2)/2 > tol && iter2_bis < max_iter
+   mid = (a2 + b2)/2;
+   idx_a = find(f_hz <= a2, 1, 'last'); if idx_a >= n, idx_a = n-1; end
+   g_a = (z_ohm(idx_a) + b_coef(idx_a)*(a2-f_hz(idx_a)) + c(idx_a)*(a2-f_hz(idx_a))^2 + d_coef(idx_a)*(a2-f_hz(idx_a))^3) - Z_th;
+   idx_m = find(f_hz <= mid, 1, 'last'); if idx_m >= n, idx_m = n-1; end
+   g_m = (z_ohm(idx_m) + b_coef(idx_m)*(mid-f_hz(idx_m)) + c(idx_m)*(mid-f_hz(idx_m))^2 + d_coef(idx_m)*(mid-f_hz(idx_m))^3) - Z_th;
+  
+   if g_m == 0, break; end
+   if sign(g_a) == sign(g_m), a2 = mid; else, b2 = mid; end
+   iter2_bis = iter2_bis + 1;
+end
+r2_bis = (a2 + b2)/2;
+% B. Newton-Raphson (Semilla: 2200)
+r2_nw = 2200; iter2_nw = 0;
+for k = 1:max_iter
+   idx = find(f_hz <= r2_nw, 1, 'last'); if idx >= n, idx = n-1; end
+   dx = r2_nw - f_hz(idx);
+   g = (z_ohm(idx) + b_coef(idx)*dx + c(idx)*dx^2 + d_coef(idx)*dx^3) - Z_th;
+   dg = b_coef(idx) + 2*c(idx)*dx + 3*d_coef(idx)*dx^2;
+   paso = g / dg;
+   r2_nw = r2_nw - paso;
+   iter2_nw = iter2_nw + 1;
+   if abs(paso) < tol, break; end
+end
+%% --- 4. ANÁLISIS DE SENSIBILIDAD EN ENTORNO SUPERIOR ---
+idx_s = find(f_hz <= r2_nw, 1, 'last');
+dx_s = r2_nw - f_hz(idx_s);
+dZ_df_r2 = b_coef(idx_s) + 2*c(idx_s)*dx_s + 3*d_coef(idx_s)*dx_s^2;
+df_dZ_r2 = 1 / dZ_df_r2;
+%% --- 5. SALIDA DE DATOS FORMATEADA (DISEÑO ALTERNATIVO) ---
+fprintf('\n=========================================================================\n');
+fprintf('       REPORTE TÉCNICO DE OPERACIÓN: DETECCIÓN DE RAÍCES CRÍTICAS        \n');
+fprintf('=========================================================================\n\n');
+fprintf(' 1. UMBRALES DE FRECUENCIA DETECTADOS (Filtro: |Z| = 150 Ohm)\n');
+fprintf(' ----------------───────────────────────────────────────────\n');
+fprintf('  * Umbral Inferior (f_1) :  %9.4f Hz  [Algoritmo: Newton-Raphson]\n', r1_nw);
+fprintf('  * Umbral Superior (f_2) :  %9.4f Hz  [Algoritmo: Newton-Raphson]\n', r2_nw);
+fprintf('  * Intervalo Seguro      :  [%.2f Hz - %.2f Hz]\n\n', r1_nw, r2_nw);
+fprintf(' +---------------------------------------------------------------------+\n');
+fprintf(' | 2. COMPARATIVA DE RENDIMIENTO Y CONVERGENCIA                        |\n');
+fprintf(' +--------------------------+--------------------+---------------------+\n');
+fprintf(' | Región Analizada         | Iter. BISECCIÓN    | Iter. NEWTON-RAPHSON|\n');
+fprintf(' +--------------------------+--------------------+---------------------+\n');
+fprintf(' | Banda Baja (~114 Hz)     |         %2d         |          %2d         |\n', iter1_bis, iter1_nw);
+fprintf(' | Banda Alta (~2244 Hz)    |         %2d         |          %2d         |\n', iter2_bis, iter2_nw);
+fprintf(' +--------------------------+--------------------+---------------------+\n\n');
+fprintf(' 3. ANÁLISIS DE SENSIBILIDAD DINÁMICA (Localizada en f_2)\n');
+fprintf(' ----------------───────────────────────────────────────\n');
+fprintf('  [-] Gradiente Local (d|Z|/df)   :  %.6f Ohm/Hz\n', dZ_df_r2);
+fprintf('  [-] Factor de Transmisión (df/d|Z|):  %.4f Hz/Ohm\n', df_dZ_r2);
+fprintf('=========================================================================\n');
+%% --- 6. GRÁFICA DE RESPUESTA EN FRECUENCIA ---
+f_malla = linspace(100, 2730, 1500);
+z_malla = zeros(size(f_malla));
+for k = 1:length(f_malla)
+   idx = find(f_hz <= f_malla(k), 1, 'last');
+   if isempty(idx), idx = 1; elseif idx >= n, idx = n-1; end
+   v_dx = f_malla(k) - f_hz(idx);
+   z_malla(k) = z_ohm(idx) + b_coef(idx)*v_dx + c(idx)*v_dx^2 + d_coef(idx)*v_dx^3;
+end
+figure('Color', 'w', 'Name', 'Análisis de Banda Segura');
+plot(f_malla, z_malla, 'Color', [0.2 0.2 0.6], 'LineWidth', 2); hold on;
+yline(Z_th, '--r', 'LineWidth', 1.2);
+% Marcar intersecciones
+plot([r1_nw, r2_nw], [Z_th, Z_th], 'rs', 'MarkerFaceColor', 'y', 'MarkerSize', 8);
+% Estética e información
+grid on; xlim([100, 2730]); ylim([125, 165]);
+title('Curva de Impedancia Espectral y Límites de Atenuación');
+xlabel('Frecuencia [Hz]'); ylabel('Impedancia [\Omega]');
+% Colocación dinámica de datos en el gráfico
+text(r1_nw + 40, Z_th + 3, sprintf('f_1 = %.2f Hz', r1_nw), 'FontSize', 9, 'FontWeight', 'bold');
+text(r2_nw - 40, Z_th - 3, sprintf('f_2 = %.2f Hz', r2_nw), 'FontSize', 9, 'FontWeight', 'bold', 'HorizontalAlignment', 'right');
