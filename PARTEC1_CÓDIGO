@@ -1,4 +1,4 @@
-%% --- SCRIPT COMPLETO: ANÁLISIS DE IMPEDANCIA (PARTE C) ---
+%% --- SCRIPT COMPLETO: ANÁLISIS DE IMPEDANCIA (PARTE C1) ---
 clear; clc; close all;
 
 % 1. Datos iniciales
