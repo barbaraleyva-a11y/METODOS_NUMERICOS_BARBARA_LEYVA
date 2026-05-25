@@ -1,0 +1,43 @@
+%% =====================================================================
+%% PARTE C: EVALUACIÓN DE SEGUNDA DERIVADA EN REGIÓN DEL MÍNIMO
+%% =====================================================================
+f_eval = [405, 460, 520, 585, 655, 730, 810, 895, 985, 1080];
+n_datos = length(f_hz);
+
+% Definimos el símbolo del check de forma nativa para MATLAB
+check_sym = char(10003); 
+
+fprintf('\n=========================================================================\n');
+fprintf(' EVALUACIÓN DE SEGUNDA DERIVADA EN REGIÓN DEL MÍNIMO (ANÁLISIS DE CURVATURA)\n');
+fprintf('=========================================================================\n');
+fprintf(' Frecuencia (Hz) | Segunda Derivada (d^2|Z|/df^2) | Dictamen de Estabilidad\n');
+fprintf('-------------------------------------------------------------------------\n');
+
+for k = 1:length(f_eval)
+    f_val = f_eval(k);
+
+    idx = find(f_hz <= f_val, 1, 'last');
+    if isempty(idx)
+        idx = 1; 
+    elseif idx >= n_datos
+        idx = n_datos - 1; 
+    end
+
+    dx = f_val - f_hz(idx);
+    S_double_prime = 2*c(idx) + 6*d_coef(idx)*dx;
+
+    % Construcción dinámica del texto usando sprintf
+    if S_double_prime > 1e-7  
+        dictamen = sprintf('Concavidad Positiva (%s Estable)', check_sym);
+    elseif S_double_prime < -1e-7
+        dictamen = 'Inestable / Inflexión';
+    else
+        dictamen = 'Punto de Inflexión Crítico';
+    end
+
+    % Impresión limpia en consola con las columnas alineadas
+    fprintf('   %6.2f Hz     |         %10.6f         | %s\n', ...
+        f_val, S_double_prime, dictamen);
+end
+
+fprintf('=========================================================================\n');
