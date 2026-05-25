@@ -1,0 +1,85 @@
+%% --- SCRIPT COMPLETO: ANÁLISIS DE IMPEDANCIA (PARTE C) ---
+clear; clc; close all;
+
+% 1. Datos iniciales
+f_hz = [100, 120, 145, 170, 200, 235, 270, 310, 355, 405, 460, 520, 585, ...
+    655, 730, 810, 895, 985, 1080, 1180, 1290, 1410, 1540, 1680, 1830, ...
+    1990, 2160, 2340, 2530, 2730];
+z_ohm = [152.3, 149.1, 146.8, 144.9, 142.0, 139.5, 137.9, 136.1, 134.8, 133.6, ...
+    132.7, 131.9, 131.4, 131.1, 130.9, 131.0, 131.3, 131.9, 132.7, 133.8, ...
+    135.2, 136.9, 138.9, 141.1, 143.5, 146.1, 149.0, 152.2, 155.6, 159.2];
+
+% 2. Cálculo de Coeficientes del Spline Cúbico Natural
+% Se construye el sistema Ax = b para los momentos de curvatura 
+n = length(f_hz); h = diff(f_hz);
+A = zeros(n, n); A(1,1) = 1; A(n,n) = 1; % Condiciones de spline natural
+for i = 2:n-1
+    A(i, i-1) = h(i-1); A(i, i) = 2*(h(i-1) + h(i)); A(i, i+1) = h(i);
+end
+b_vec = zeros(n, 1);
+for i = 2:n-1
+    b_vec(i) = (3/h(i))*(z_ohm(i+1) - z_ohm(i)) - (3/h(i-1))*(z_ohm(i) - z_ohm(i-1));
+end
+c = A \ b_vec; % Resolución del sistema tridiagonal
+
+b_coef = zeros(n-1, 1); d_coef = zeros(n-1, 1);
+a_coef = z_ohm(:);
+for i = 1:n-1
+    d_coef(i) = (c(i+1) - c(i)) / (3*h(i));
+    b_coef(i) = (z_ohm(i+1) - z_ohm(i))/h(i) - h(i)*(2*c(i) + c(i+1))/3;
+end
+
+% 3. Derivación Analítica 
+f_malla = linspace(min(f_hz), max(f_hz), 5000);
+z_der_1 = zeros(size(f_malla));
+z_der_2 = zeros(size(f_malla));
+for k = 1:length(f_malla)
+    idx = find(f_hz <= f_malla(k), 1, 'last');
+    if isempty(idx), idx = 1; elseif idx >= n, idx = n-1; end
+    dx = f_malla(k) - f_hz(idx);
+    % Polinomio: S(x) = a + b(x-xi) + c(x-xi)^2 + d(x-xi)^3
+    z_der_1(k) = b_coef(idx) + 2*c(idx)*dx + 3*d_coef(idx)*(dx^2);
+    z_der_2(k) = 2*c(idx) + 6*d_coef(idx)*dx;
+end
+
+% 4. Localización del Mínimo
+% El cambio de signo de la derivada de (-) a (+) indica un mínimo local
+idx_min_f = find(diff(sign(z_der_1)) > 0, 1);
+f_min = f_malla(idx_min_f);
+
+idx_seg = find(f_hz <= f_min, 1, 'last');
+if idx_seg >= n, idx_seg = n-1; end
+d2_min = 2*c(idx_seg) + 6*d_coef(idx_seg)*(f_min - f_hz(idx_seg));
+
+% [Reporte impreso omitido por brevedad, se mantiene igual]
+
+% 6. Visualización con énfasis en puntos críticos
+figure('Color', 'w');
+subplot(2,1,1); plot(f_malla, z_der_1, 'b', 'LineWidth', 1.5); hold on; 
+yline(0, '--r'); xline(f_min, ':k', 'Mínimo'); grid on; 
+title('Derivada Primera (d|Z|/df)'); ylabel('Ohm/Hz');
+
+subplot(2,1,2); plot(f_malla, z_der_2, 'm', 'LineWidth', 1.5); hold on; 
+plot(f_min, d2_min, 'ko', 'MarkerFaceColor', 'y'); 
+xline(f_min, ':k'); grid on; 
+title('Derivada Segunda (d^2|Z|/df^2) - Estabilidad'); ylabel('Ohm/Hz^2');
+xlabel('Frecuencia (Hz)');
+
+% --- IMPRESIÓN DE TABLA TÉCNICA (FORMATO EXACTO) ---
+fprintf('\n--- RESULTADOS PARTE C ---\n');
+fprintf('Frecuencia del mínimo detectada: %.4f Hz\n\n', f_min);
+
+fprintf('==================================================================================\n');
+fprintf(' DERIVACIÓN ANALÍTICA ESPECTRAL – REPORTE DE EXTREMOS Y COMPORTAMIENTO\n');
+fprintf('==================================================================================\n');
+fprintf('Estado del Canal          | Frecuencia (f) | Impedancia (|Z|) | Derivada (d|Z|/df)\n');
+fprintf('----------------------------------------------------------------------------------\n');
+
+% Cálculo de derivadas para los extremos (necesarios para la tabla)
+der_inicio = b_coef(1); 
+der_final  = b_coef(end) + 2*c(end)*h(end) + 3*d_coef(end)*(h(end)^2);
+
+fprintf('Inicio del Espectro       | %8.2f Hz  | %12.4f Ohm | %16.4f Ohm/Hz\n', f_hz(1), z_ohm(1), der_inicio);
+fprintf('UBICACIÓN DEL MÍNIMO (f_m)| %8.2f Hz  | %12.4f Ohm | %16.4f Ohm/Hz\n', f_min, (a_coef(idx_seg) + b_coef(idx_seg)*(f_min-f_hz(idx_seg)) + c(idx_seg)*(f_min-f_hz(idx_seg))^2 + d_coef(idx_seg)*(f_min-f_hz(idx_seg))^3), 0);
+fprintf('Final del Espectro        | %8.2f Hz  | %12.4f Ohm | %16.4f Ohm/Hz\n', f_hz(end), z_ohm(end), der_final);
+fprintf('==================================================================================\n');
