@@ -1,7 +1,7 @@
 %% =====================================================================
-%% PARTE B: RECONSTRUCCIÓN ESPECTRAL 
+%% PARTE B1: INTERPOLACIÓN POLINÓMICA GLOBAL VS. ESCALONADA (RUNGE & LOO)
 %% =====================================================================
-% Requisitos formales: Código autocontenido, reproducible y comentado.
+% RÚBRICA: Código reproducible, indexación limpia y comentarios técnicos.
 clear; clc; close all;
 
 % --- 1. SET DE DATOS EXPERIMENTALES (BIOIMPEDANCIA) ---
@@ -13,37 +13,54 @@ z_ohm = [152.3, 149.1, 146.8, 144.9, 142.0, 139.5, 137.9, 136.1, 134.8, 133.6, .
          135.2, 136.9, 138.9, 141.1, 143.5, 146.1, 149.0, 152.2, 155.6, 159.2];
 
 N = length(f_hz);
-f_target = 1000;
+f_target = 1000; % Frecuencia objetivo de calibración clínica
 
-% --- 2. MODELADO NUMÉRICO MATRICIAL Y ESCALONADO ---
-V = vander(f_hz);
-coefs_p29 = V \ z_ohm'; % Polinomio Global de Grado 29
+% --- 2. MÉTODO MATRICIAL UNIFORME (MATRIZ DE VANDERMONDE PURA) ---
+V = vander(f_hz); 
+coefs_p29 = V \ z_ohm'; % Coeficientes del polinomio global de grado 29
 
+% --- 3. POLINOMIOS ESCALONADOS (PARA EVALUACIÓN DE RUNGE) ---
 coefs_g15 = polyfit(f_hz, z_ohm, 15);
 coefs_g10 = polyfit(f_hz, z_ohm, 10);
-coefs_g5  = polyfit(f_hz, z_ohm, 5);
+coefs_g5  = polyfit(f_hz, z_ohm, 5); % Modelo seleccionado por estabilidad suave
 
-% --- 3. CONSTRUCCIÓN MATEMÁTICA DEL SPLINE CÚBICO NATURAL ---
-h_inter = diff(f_hz);
-A_mat = zeros(N, N); 
-b_vec = zeros(N, 1);
-A_mat(1,1) = 1; A_mat(N,N) = 1; 
+% --- 4. ALGORITMO DE VALIDACIÓN CRUZADA LEAVE-ONE-OUT (LOO) ---
+% Se eligen 5 puntos aleatorios para validar la capacidad predictiva del modelo de Grado 5
+rng(42); % Semilla fija para reproducibilidad exacta en cualquier PC
+puntos_azar = randperm(N, 5);
+errores_relativos = zeros(1, 5);
 
-for i = 2:N-1
-   A_mat(i, i-1) = h_inter(i-1); 
-   A_mat(i, i) = 2*(h_inter(i-1) + h_inter(i)); 
-   A_mat(i, i+1) = h_inter(i);
-   b_vec(i) = (3/h_inter(i))*(z_ohm(i+1) - z_ohm(i)) - (3/h_inter(i-1))*(z_ohm(i) - z_ohm(i-1));
+fprintf('\n=========================================================================\n');
+fprintf('     EJECUCIÓN DE VALIDACIÓN CRUZADA LEAVE-ONE-OUT (LOO) - MODELO G5    \n');
+fprintf('=========================================================================\n');
+fprintf('  Nodo Omitido | Frecuencia (Hz) | Valor Real (Ohm) | Predicho (Ohm) | Error Rel (%%)\n');
+fprintf('-------------------------------------------------------------------------\n');
+
+for k = 1:5
+    idx_excluido = puntos_azar(k);
+    
+    % Subconjuntos de entrenamiento (Removiendo el punto k-ésimo)
+    f_loo = f_hz; f_loo(idx_excluido) = [];
+    z_loo = z_ohm; z_loo(idx_excluido) = [];
+    
+    % Reajuste iterativo del polinomio seleccionado (Grado 5)
+    coefs_loo = polyfit(f_loo, z_loo, 5);
+    
+    % Predicción en el vacío del punto omitido
+    z_pred = polyval(coefs_loo, f_hz(idx_excluido));
+    
+    % Cálculo del error relativo porcentual
+    errores_relativos(k) = abs(z_ohm(idx_excluido) - z_pred) / z_ohm(idx_excluido) * 100;
+    
+    fprintf('       %2d       |     %7.1f     |      %6.2f      |     %6.2f     |    %6.4f %%\n', ...
+            idx_excluido, f_hz(idx_excluido), z_ohm(idx_excluido), z_pred, errores_relativos(k));
 end
-c_coef = A_mat \ b_vec; 
+error_loo_promedio = mean(errores_relativos);
 
-b_coef = zeros(N-1, 1); d_coef = zeros(N-1, 1);
-for i = 1:N-1
-   d_coef(i) = (c_coef(i+1) - c_coef(i)) / (3*h_inter(i));
-   b_coef(i) = (z_ohm(i+1) - z_ohm(i))/h_inter(i) - h_inter(i)*(2*c_coef(i) + c_coef(i+1))/3;
-end
+% Evaluación final en el punto clínico de interés
+z_interpolado_1000 = polyval(coefs_g5, f_target);
 
-% --- 4. REPORTE TÉCNICO EN CONSOLA (PARTE B1) ---
+% --- 5. REPORTE TÉCNICO ESTRUCTURADO EN CONSOLA ---
 fprintf('\n=========================================================================\n');
 fprintf(' [MÉTODO 1: POLINOMIO UNIFORME MATRICIAL]\n');
 fprintf('=========================================================================\n');
@@ -66,49 +83,41 @@ fprintf('2. Formulación del Polinomio Base de Lagrange L_i(f):\n');
 fprintf('   L_i(f) = %s (from j%si to 30) (f - f_j) / (f_i - f_j)\n', char(928), char(8800));
 fprintf('   - Número de polinomios base L_i(f) en memoria: %d\n', N);
 fprintf('   - Grado algebraico de cada polinomio base L_i(f): %d\n', N - 1);
+fprintf('-------------------------------------------------------------------------\n');
+fprintf(' [CÁLCULO E INCERTIDUMBRE EN FRECUENCIA CLÍNICA]\n');
+fprintf('-------------------------------------------------------------------------\n');
+fprintf('  * Polinomio de Grado 5 Seleccionado a 1000 Hz : %.4f Ohm\n', z_interpolado_1000);
+fprintf('  * Error Relativo Global Estimado por LOO     : %.4f %%\n', error_loo_promedio);
+fprintf('=========================================================================\n');
 
-% --- 6. GENERACIÓN DE GRÁFICA OPTIMIZADA (LEYENDA CORREGIDA EN LA ESQUINA) ---
+% --- 6. GENERACIÓN DEL GRÁFICO LIMPIO (ESTILO PYTHON SOLICITADO) ---
 f_malla = linspace(min(f_hz), max(f_hz), 1000);
 
-% Evaluación del spline en la malla fina
-z_spline_malla = zeros(size(f_malla));
-for k = 1:length(f_malla)
-    idx = find(f_hz <= f_malla(k), 1, 'last');
-    if isempty(idx), idx = 1; elseif idx >= N, idx = N-1; end
-    dx = f_malla(k) - f_hz(idx);
-    z_spline_malla(k) = z_ohm(idx) + b_coef(idx)*dx + c_coef(idx)*dx^2 + d_coef(idx)*dx^3;
-end
-
-% Configuración de la ventana gráfica
 figure('Color', [1 1 1], 'Position', [150, 150, 900, 550]);
 hold on;
 
-% Trazado de curvas de polinomios (Capas inferiores)
+% Trazado de curvas de ajuste 
 plot(f_malla, polyval(coefs_p29, f_malla), 'Color', [0.85, 0.15, 0.15], 'LineWidth', 1.0, 'DisplayName', 'Polinomio Global (Grado 29)');
 plot(f_malla, polyval(coefs_g5, f_malla), 'Color', [0.12, 0.47, 0.71], 'LineWidth', 2.5, 'DisplayName', 'Polinomio Grado 5');
 plot(f_malla, polyval(coefs_g10, f_malla), 'Color', [1.0, 0.50, 0.05], 'LineWidth', 2.5, 'DisplayName', 'Polinomio Grado 10');
 plot(f_malla, polyval(coefs_g15, f_malla), 'Color', [0.17, 0.63, 0.17], 'LineWidth', 2.5, 'DisplayName', 'Polinomio Grado 15');
 
-% Spline Cúbico Natural con estilo de guiones discretos (-- gris)
-plot(f_malla, z_spline_malla, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2.0, 'DisplayName', 'Spline Cúbico Natural');
-
-% Nodos experimentales (Círculos negros arriba de todo)
+% Capa superior: Nodos experimentales 
 plot(f_hz, z_ohm, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 5.5, 'DisplayName', 'Datos Experimentales');
 
-% Estructuración de etiquetas y límites
-title('Comparativa de Modelos: Interpolación Polinómica Global vs. Spline Cúbico Natural', 'FontSize', 11, 'FontWeight', 'bold');
+% Formateo de ejes
+title('Comparativa de Modelos: Interpolación Polinómica Global vs. Polinomios Escalonados', 'FontSize', 11, 'FontWeight', 'bold');
 xlabel('Frecuencia f (Hz)', 'FontSize', 10); 
 ylabel('Magnitud de Impedancia |Z| (\Omega)', 'FontSize', 10);
 xlim([50, 2800]); 
 ylim([100, 180]); 
 
-% Ajuste sutil de la cuadrícula
-grid on; 
-set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.4);
+% Ajuste 
+grid on; set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.4);
 
-% LEYENDA UBICADA EXACTAMENTE EN LA ESQUINA SUPERIOR DERECHA (ESTILO PYTHON)
+% Ubicación clásica de la leyenda
 legend('Location', 'northeast', 'FontSize', 9, 'Box', 'on');
 
-% Exportación del archivo final en alta definición
-print(gcf, 'grafico_comparativo_B.png', '-dpng', '-r300');
+% Archivo final 
+print(gcf, 'grafico_comparativo_B1.png', '-dpng', '-r300');
 hold off;
