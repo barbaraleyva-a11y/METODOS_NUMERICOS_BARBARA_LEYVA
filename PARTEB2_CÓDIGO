@@ -1,8 +1,6 @@
 %% =====================================================================
-%% PARTE B2: EVALUACIÓN COMPARATIVA Y RECONSTRUCCIÓN ESPECTRAL CLINICA
+%% PARTE B2
 %% =====================================================================
-% REQUISITOS CUMPLIDOS: Código reproducible, comentado línea por línea,
-% con alto rigor numérico y exportación compatible de gráficos.
 clear; clc; close all;
 
 % --- 1. VECTOR DE DATOS EXPERIMENTALES (BIOIMPEDANCIA) ---
@@ -98,7 +96,7 @@ plot(f_hz, z_ohm, 'ko', 'MarkerFaceColor', [0.95 0.95 0.95], 'MarkerSize', 5.5, 
 plot(f_target, z_spline_1000, 'ks', 'MarkerFaceColor', 'y', 'MarkerSize', 8, 'LineWidth', 1.2, ...
    'DisplayName', sprintf('Eval. 1000 Hz: %.1f \\Omega', z_spline_1000));
 
-% Formateo de Ejes y Grilla Estilo Industrial
+% Formateo de Ejes 
 title('Reconstrucción Espectral Continua: Splines Cúbicos vs. Polinomio Local', ...
    'FontSize', 11, 'FontWeight', 'bold');
 xlabel('Frecuencia de Excitación, f (Hz)', 'FontSize', 10); 
@@ -106,10 +104,10 @@ ylabel('Magnitud de Impedancia, |Z| (\Omega)', 'FontSize', 10);
 xlim([50, 2800]); ylim([125, 165]);
 grid on; set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.5);
 
-% Ajuste avanzado y compacto de la leyenda superior horizontal
+% Ajuste 
 lgd = legend('Location', 'north', 'Orientation', 'horizontal', 'FontSize', 8, 'Box', 'off');
 lgd.ItemTokenSize = [12, 18]; 
 
-% Exportación del archivo en alta definición (Universalmente compatible)
+% Archivo en alta definición (Universalmente compatible)
 print(gcf, 'Grafica_Splines_Naturales.png', '-dpng', '-r300');
 hold off;
