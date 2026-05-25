@@ -1,10 +1,10 @@
 %% =====================================================================
-%% PARTE C: EVALUACIÓN DE SEGUNDA DERIVADA EN REGIÓN DEL MÍNIMO
+%% PARTE C2: EVALUACIÓN DE SEGUNDA DERIVADA 
 %% =====================================================================
 f_eval = [405, 460, 520, 585, 655, 730, 810, 895, 985, 1080];
 n_datos = length(f_hz);
 
-% Definimos el símbolo del check de forma nativa para MATLAB
+% Definimos el símbolo del check 
 check_sym = char(10003); 
 
 fprintf('\n=========================================================================\n');
