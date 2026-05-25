@@ -83,12 +83,12 @@ for k = 1:max_iter
    iter2_nw = iter2_nw + 1;
    if abs(paso) < tol, break; end
 end
-%% --- 4. ANÁLISIS DE SENSIBILIDAD EN ENTORNO SUPERIOR ---
+%% --- 4. ANÁLISIS DE SENSIBILIDAD ---
 idx_s = find(f_hz <= r2_nw, 1, 'last');
 dx_s = r2_nw - f_hz(idx_s);
 dZ_df_r2 = b_coef(idx_s) + 2*c(idx_s)*dx_s + 3*d_coef(idx_s)*dx_s^2;
 df_dZ_r2 = 1 / dZ_df_r2;
-%% --- 5. SALIDA DE DATOS FORMATEADA (DISEÑO ALTERNATIVO) ---
+%% --- 5. SALIDA DE DATOS FORMATEADA---
 fprintf('\n=========================================================================\n');
 fprintf('       REPORTE TÉCNICO DE OPERACIÓN: DETECCIÓN DE RAÍCES CRÍTICAS        \n');
 fprintf('=========================================================================\n\n');
