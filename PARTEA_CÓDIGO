@@ -1,0 +1,53 @@
+% =========================================================================
+% PROYECTO: SISTEMA PORTÁTIL DE MONITOREO FISIOLÓGICO
+% OBJETIVO: Identificación y análisis del mínimo espectroscópico (730 Hz)
+% =========================================================================
+clear; clc; close all;
+
+%% 1. ENTRADA DE DATOS
+% Se definen los vectores experimentales obtenidos en laboratorio.
+% Es fundamental mantener estos datos precisos para la evaluación numérica.
+f_hz = [100, 120, 145, 170, 200, 235, 270, 310, 355, 405, 460, 520, 585, ...
+   655, 730, 810, 895, 985, 1080, 1180, 1290, 1410, 1540, 1680, 1830, ...
+   1990, 2160, 2340, 2530, 2730];
+z_ohm = [152.3, 149.1, 146.8, 144.9, 142.0, 139.5, 137.9, 136.1, 134.8, 133.6, ...
+   132.7, 131.9, 131.4, 131.1, 130.9, 131.0, 131.3, 131.9, 132.7, 133.8, ...
+   135.2, 136.9, 138.9, 141.1, 143.5, 146.1, 149.0, 152.2, 155.6, 159.2];
+
+%% 2. CÁLCULO DEL MÍNIMO EXPERIMENTAL
+% Buscamos el índice donde la impedancia es mínima para identificar la frecuencia.
+[z_min, idx_min] = min(z_ohm);
+f_exp = f_hz(idx_min); % Resultado: 730 Hz (Punto crítico de transición)
+
+%% 3. VISUALIZACIÓN GRÁFICA
+% Creamos una figura con fondo blanco y dimensiones adecuadas para el informe.
+figure('Color', [1 1 1], 'Position', [100, 100, 800, 500]);
+plot(f_hz, z_ohm, 'o-', 'Color', [0.4 0.4 0.4], 'MarkerFaceColor', [0.8 0.8 0.8], ...
+    'LineWidth', 1.2, 'DisplayName', 'Perfil de Impedancia Medido');
+hold on;
+
+% Trazamos líneas de referencia (xline, yline) para facilitar la lectura del mínimo.
+xline(f_exp, '--', 'Color', [0.6 0.6 0.6]);
+yline(z_min, '--', 'Color', [0.6 0.6 0.6]);
+
+% Resaltamos el punto crítico con un cuadrado amarillo, como en tu imagen.
+plot(f_exp, z_min, 's', 'MarkerSize', 10, 'MarkerFaceColor', [1 0.85 0], ...
+    'DisplayName', sprintf('Minimo Experimental: %d Hz', f_exp));
+
+% Etiquetado de ejes para presentación profesional.
+% Usamos títulos sin caracteres especiales para evitar errores de interpretación.
+title('Analisis Espectroscopico: Impedancia vs Frecuencia');
+xlabel('Frecuencia de Excitacion (Hz)');
+ylabel('Magnitud de Impedancia |Z| (Ohmios)');
+
+grid on; % Activamos cuadrícula para mejorar la legibilidad.
+legend('Location', 'southeast'); % Colocamos la leyenda donde no obstruya.
+
+%% 4. REPORTE EN CONSOLA (Salida de datos)
+% Imprimimos los resultados en la ventana de comandos para verificar la correctitud numérica.
+fprintf('======================================================\n');
+fprintf(' REPORTE DE RESULTADOS: MINIMO LOCAL DETECTADO \n');
+fprintf('======================================================\n');
+fprintf('Frecuencia experimental hallada: %d Hz\n', f_exp);
+fprintf('Impedancia minima hallada: %.1f Ohmios\n', z_min);
+fprintf('======================================================\n');
