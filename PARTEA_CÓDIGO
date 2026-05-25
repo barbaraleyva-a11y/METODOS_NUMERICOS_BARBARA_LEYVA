@@ -5,7 +5,7 @@
 clear; clc; close all;
 
 %% 1. ENTRADA DE DATOS
-% Se definen los vectores experimentales obtenidos en laboratorio.
+% Se definen los vectores experimentales.
 % Es fundamental mantener estos datos precisos para la evaluación numérica.
 f_hz = [100, 120, 145, 170, 200, 235, 270, 310, 355, 405, 460, 520, 585, ...
    655, 730, 810, 895, 985, 1080, 1180, 1290, 1410, 1540, 1680, 1830, ...
@@ -20,7 +20,7 @@ z_ohm = [152.3, 149.1, 146.8, 144.9, 142.0, 139.5, 137.9, 136.1, 134.8, 133.6, .
 f_exp = f_hz(idx_min); % Resultado: 730 Hz (Punto crítico de transición)
 
 %% 3. VISUALIZACIÓN GRÁFICA
-% Creamos una figura con fondo blanco y dimensiones adecuadas para el informe.
+% Creamos una figura.
 figure('Color', [1 1 1], 'Position', [100, 100, 800, 500]);
 plot(f_hz, z_ohm, 'o-', 'Color', [0.4 0.4 0.4], 'MarkerFaceColor', [0.8 0.8 0.8], ...
     'LineWidth', 1.2, 'DisplayName', 'Perfil de Impedancia Medido');
@@ -34,13 +34,12 @@ yline(z_min, '--', 'Color', [0.6 0.6 0.6]);
 plot(f_exp, z_min, 's', 'MarkerSize', 10, 'MarkerFaceColor', [1 0.85 0], ...
     'DisplayName', sprintf('Minimo Experimental: %d Hz', f_exp));
 
-% Etiquetado de ejes para presentación profesional.
-% Usamos títulos sin caracteres especiales para evitar errores de interpretación.
+% Etiquetado de ejes .
 title('Analisis Espectroscopico: Impedancia vs Frecuencia');
 xlabel('Frecuencia de Excitacion (Hz)');
 ylabel('Magnitud de Impedancia |Z| (Ohmios)');
 
-grid on; % Activamos cuadrícula para mejorar la legibilidad.
+grid on; 
 legend('Location', 'southeast'); % Colocamos la leyenda donde no obstruya.
 
 %% 4. REPORTE EN CONSOLA (Salida de datos)
