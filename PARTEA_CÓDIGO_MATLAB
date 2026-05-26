@@ -1,6 +1,6 @@
 % =========================================================================
 % PROYECTO: SISTEMA PORTÁTIL DE MONITOREO FISIOLÓGICO
-% OBJETIVO: Identificación y análisis del mínimo espectroscópico (730 Hz)
+% Identificación mínimo espectroscópico (730 Hz)
 % =========================================================================
 clear; clc; close all;
 
