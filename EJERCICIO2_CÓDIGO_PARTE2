@@ -1,0 +1,124 @@
+% =========================================================================
+% PARTE 2
+% Métodos: Diferencias Finitas y Derivada de Spline
+% =========================================================================
+
+clear; clc; format compact;
+
+%% --- MEDICIONES EXPERIMENTALES DEL ENSAYO ---
+frec = [10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, ...
+        35.0, 37.5, 40.0, 42.5, 45.0, 47.5, 50.0, 52.5, 55.0, 57.5, ...
+        60.0, 62.5, 65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5, ...
+        85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0, 102.5, 105.0, 107.5];
+
+volt = [0.842, 0.911, 0.986, 1.062, 1.143, 1.227, 1.314, 1.401, 1.482, 1.551, ...
+        1.216, 1.048, 0.866, 0.689, 0.521, 0.364, 0.223, 0.103, 0.012, -0.041, ...
+        -0.057, -0.034, 0.018, 0.096, 0.197, 0.318, 0.452, 0.579, 0.700, 0.809, ...
+        0.611, 0.688, 0.756, 0.811, 0.856, 0.894, 0.926, 0.954, 0.980, 1.004];
+
+h = 2.5; % Tamaño de paso constante (kHz)
+
+%% =========================================================================
+%% 1. Y 2. CÁLCULO DE DERIVADAS POR DIFERENCIAS FINITAS
+%% =========================================================================
+
+% --- f = 10.0 kHz: Fórmula Progresiva de Orden 2 ---
+% Requiere los puntos en i (10.0), i+1 (12.5) e i+2 (15.0)
+dVdf_10_prog2 = (-3*volt(1) + 4*volt(2) - volt(3)) / (2 * h);
+
+% --- f = 40.0 kHz (Índice 13) ---
+dVdf_40_cent2 = (volt(14) - volt(12)) / (2 * h);
+dVdf_40_cent4 = (-volt(15) + 8*volt(14) - 8*volt(12) + volt(11)) / (12 * h);
+
+% --- f = 70.0 kHz (Índice 25) ---
+dVdf_70_cent2 = (volt(26) - volt(24)) / (2 * h);
+dVdf_70_cent4 = (-volt(27) + 8*volt(26) - 8*volt(24) + volt(25-2)) / (12 * h);
+
+% --- f = 100.0 kHz (Índice 37) ---
+dVdf_100_cent2 = (volt(38) - volt(36)) / (2 * h);
+dVdf_100_cent4 = (-volt(39) + 8*volt(38) - 8*volt(36) + volt(35)) / (12 * h);
+
+
+%% =========================================================================
+%% 4. DERIVACIÓN MEDIANTE TRAZADOR CÚBICO (SPLINE)
+%% =========================================================================
+dVdf_10_spl  = derivar_spline_local(frec, volt, 10.0);
+dVdf_40_spl  = derivar_spline_local(frec, volt, 40.0);
+dVdf_70_spl  = derivar_spline_local(frec, volt, 70.0);
+dVdf_100_spl = derivar_spline_local(frec, volt, 100.0);
+
+
+%% =========================================================================
+%% IMPRESIÓN DE REPORTES EN CONSOLA
+%% =========================================================================
+disp('=====================================================================');
+disp('   RESULTADOS DE DERIVACIÓN NUMÉRICA: dV/df (Sensibilidad en V/kHz)');
+disp('=====================================================================');
+fprintf('Frecuencia: 10.0 kHz (Extremo Inferior)\n');
+fprintf('  -> Dif. Progresiva Orden 2:  %8.4f V/kHz\n', dVdf_10_prog2);
+fprintf('  -> Derivada del Spline:      %8.4f V/kHz\n\n', dVdf_10_spl);
+
+fprintf('Frecuencia: 40.0 kHz\n');
+fprintf('  -> Dif. Centrada Orden 2:   %8.4f V/kHz\n', dVdf_40_cent2);
+fprintf('  -> Dif. Centrada Orden 4:   %8.4f V/kHz\n', dVdf_40_cent4);
+fprintf('  -> Derivada del Spline:      %8.4f V/kHz\n\n', dVdf_40_spl);
+
+fprintf('Frecuencia: 70.0 kHz\n');
+fprintf('  -> Dif. Centrada Orden 2:   %8.4f V/kHz\n', dVdf_70_cent2);
+fprintf('  -> Dif. Centrada Orden 4:   %8.4f V/kHz\n', dVdf_70_cent4);
+fprintf('  -> Derivada del Spline:      %8.4f V/kHz\n\n', dVdf_70_spl);
+
+fprintf('Frecuencia: 100.0 kHz\n');
+fprintf('  -> Dif. Centrada Orden 2:   %8.4f V/kHz\n', dVdf_100_cent2);
+fprintf('  -> Dif. Centrada Orden 4:   %8.4f V/kHz\n', dVdf_100_cent4);
+fprintf('  -> Derivada del Spline:      %8.4f V/kHz\n', dVdf_100_spl);
+disp('=====================================================================');
+
+
+%% =========================================================================
+%% FUNCIONES AUXILIARES
+%% =========================================================================
+
+function dVdf = derivar_spline_local(x, y, x_obj)
+    % Esta función calcula analíticamente la primera derivada del Spline Cúbico
+    n = length(x) - 1;
+    h_v = diff(x);
+    
+    % Ensamble de la matriz tridiagonal de momentos
+    A = zeros(1, n+1); B = ones(1, n+1); C = zeros(1, n+1); D = zeros(1, n+1);
+    for i = 2:n
+        A(i) = h_v(i-1) / 6.0;
+        B(i) = (h_v(i-1) + h_v(i)) / 3.0;
+        C(i) = h_v(i) / 6.0;
+        D(i) = ((y(i+1) - y(i)) / h_v(i)) - ((y(i) - y(i-1)) / h_v(i-1));
+    end
+    
+    % Solver Thomas interno
+    cp = zeros(1, n+1); dp = zeros(1, n+1);
+    cp(1) = C(1) / B(1); dp(1) = D(1) / B(1);
+    for i = 2:n+1
+        den = B(i) - A(i) * cp(i-1);
+        if i < n+1, cp(i) = C(i) / den; end
+        dp(i) = (D(i) - A(i) * dp(i-1)) / den;
+    end
+    M = zeros(1, n+1); M(n+1) = dp(n+1);
+    for i = n:-1:1, M(i) = dp(i) - cp(i) * M(i+1); end
+    
+    % Búsqueda del tramo correspondiente
+    tramo = 1;
+    for i = 1:n
+        if (x(i) <= x_obj) && (x_obj <= x(i+1))
+            tramo = i;
+            break;
+        end
+    end
+    
+    hi = h_v(tramo);
+    
+    % Primera derivada analítica de la ecuación del trazador cúbico
+    t1 = -M(tramo) * ((x(tramo+1) - x_obj)^2) / (2.0 * hi);
+    t2 = M(tramo+1) * ((x_obj - x(tramo))^2) / (2.0 * hi);
+    t3 = (y(tramo+1) - y(tramo)) / hi - (M(tramo+1) - M(tramo)) * hi / 6.0;
+    
+    dVdf = t1 + t2 + t3;
+end
