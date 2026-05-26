@@ -1,0 +1,129 @@
+% =========================================================================
+% PARTE 3: DETECCIÓN DE RAÍCES EN UN SÓLO BLOQUE DE PROCESAMIENTO
+% Comparativa de Iteraciones en Paralelo: Bisección de Tabla vs Spline Cúbico
+% =========================================================================
+
+clear; clc; format compact;
+
+%% --- REGISTRO DE LECTURAS DEL BIOSENSOR ---
+f_khz = [10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, ...
+         35.0, 37.5, 40.0, 42.5, 45.0, 47.5, 50.0, 52.5, 55.0, 57.5, ...
+         60.0, 62.5, 65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5, ...
+         85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0, 102.5, 105.0, 107.5];
+
+v_vol = [0.842, 0.911, 0.986, 1.062, 1.143, 1.227, 1.314, 1.401, 1.482, 1.551, ...
+         1.216, 1.048, 0.866, 0.689, 0.521, 0.364, 0.223, 0.103, 0.012, -0.041, ...
+         -0.057, -0.034, 0.018, 0.096, 0.197, 0.318, 0.452, 0.579, 0.700, 0.809, ...
+         0.611, 0.688, 0.756, 0.811, 0.856, 0.894, 0.926, 0.954, 0.980, 1.004];
+
+tol = 1e-5; % Criterio de parada para alta precisión
+
+%% --- 1 Y 3. IDENTIFICACIÓN DE INTERVALOS DE CRUCE POR CERO ---
+% Primer Cruce (Alarma 1): Detectado entre 55.0 y 57.5 kHz (Cambio de +0.012 a -0.041)
+f1_a = 55.0; f1_b = 57.5;
+v1_a = 0.012; v1_b = -0.041;
+
+% Segundo Cruce (Alarma 2): Detectado entre 62.5 y 65.0 kHz (Cambio de -0.034 a +0.018)
+f2_a = 62.5; f2_b = 65.0;
+v2_a = -0.034; v2_b = 0.018;
+
+
+%% --- EJECUCIÓN DEL ANÁLISIS DE CONVERGENCIA COMPARATIVO ---
+
+fprintf('=========================================================================\n');
+fprintf('        HISTORIAL UNIFICADO DE CONVERGENCIA PARA LA ALARMA 1 (f1)\n');
+fprintf('=========================================================================\n');
+desplegar_tabla_comparativa(f1_a, f1_b, v1_a, v1_b, f_khz, v_vol, tol);
+
+fprintf('=========================================================================\n');
+fprintf('        HISTORIAL UNIFICADO DE CONVERGENCIA PARA LA ALARMA 2 (f2)\n');
+fprintf('=========================================================================\n');
+desplegar_tabla_comparativa(f2_a, f2_b, v2_a, v2_b, f_khz, v_vol, tol);
+
+
+%% =========================================================================
+%% FUNCIONES MATEMÁTICAS LOCALES
+%% =========================================================================
+
+function desplegar_tabla_comparativa(f_a, f_b, v_a, v_b, x_full, y_full, precision)
+    % Límites independientes para el cálculo lineal de tabla
+    xa_t = f_a; xb_t = f_b;
+    m_lin = (v_b - v_a) / (f_b - f_a);
+    f_tabla = @(x) v_a + m_lin * (x - f_a);
+    
+    % Límites independientes para el cálculo con spline
+    xa_s = f_a; xb_s = f_b;
+
+    % Encabezado único optimizado para el informe
+    fprintf('+-------+-----------------------------+-----------------------------+\n');
+    fprintf('|       |     BISECCIÓN DE LA TABLA   |      REFINAMIENTO SPLINE    |\n');
+    fprintf('| Ciclo |  Punto Medio |    V(f_m)    |  Punto Medio |    V(f_m)    |\n');
+    fprintf('+-------+--------------+--------------+--------------+--------------+\n');
+    
+    ciclo = 1;
+    % Se ejecuta mientras alguno de los dos métodos siga buscando la tolerancia
+    while ((xb_t - xa_t) / 2 > precision) || ((xb_s - xa_s) / 2 > precision)
+        
+        % --- Operación Bisección Tabla ---
+        if (xb_t - xa_t) / 2 > precision
+            xc_t = (xa_t + xb_t) / 2;
+            yc_t = f_tabla(xc_t);
+            str_t_f = sprintf('%12.4f', xc_t);
+            str_t_v = sprintf('%12.5f', yc_t);
+            
+            if f_tabla(xa_t) * yc_t < 0, xb_t = xc_t; else, xa_t = xc_t; end
+        else
+            str_t_f = '  Convergido'; str_t_v = '   -------  ';
+        end
+        
+        % --- Operación Bisección Spline ---
+        if (xb_s - xa_s) / 2 > precision
+            xc_s = (xa_s + xb_s) / 2;
+            yc_s = calcular_punto_spline(x_full, y_full, xc_s);
+            str_s_f = sprintf('%12.4f', xc_s);
+            str_s_v = sprintf('%12.5f', yc_s);
+            
+            if calcular_punto_spline(x_full, y_full, xa_s) * yc_s < 0, xb_s = xc_s; else, xa_s = xc_s; end
+        else
+            str_s_f = '  Convergido'; str_s_v = '   -------  ';
+        end
+        
+        % Impresión simultánea de la fila actual de la bitácora
+        fprintf('|  %2d   | %s | %s | %s | %s |\n', ...
+                ciclo, str_t_f, str_t_v, str_s_f, str_s_v);
+        ciclo = ciclo + 1;
+    end
+    fprintf('+-------+--------------+--------------+--------------+--------------+\n');
+    fprintf(' > Raíz Tabla: %8.4f kHz  ||  > Raíz Refinada Spline: %8.4f kHz\n', (xa_t + xb_t)/2, (xa_s + xb_s)/2);
+    fprintf('=========================================================================\n\n');
+end
+
+function valor = calcular_punto_spline(x, y, x_eval)
+    % Evaluador embebido del Trazador Cúbico Natural
+    n = length(x) - 1; h = diff(x);
+    A = zeros(1, n+1); B = ones(1, n+1); C = zeros(1, n+1); D = zeros(1, n+1);
+    for j = 2:n
+        A(j) = h(j-1) / 6.0; B(j) = (h(j-1) + h(j)) / 3.0; C(j) = h(j) / 6.0;
+        D(j) = ((y(j+1) - y(j)) / h(j)) - ((y(j) - y(j-1)) / h(j-1));
+    end
+    cp = zeros(1, n+1); dp = zeros(1, n+1);
+    cp(1) = C(1) / B(1); dp(1) = D(1) / B(1);
+    for j = 2:n+1
+        den = B(j) - A(j) * cp(j-1);
+        if j < n+1, cp(j) = C(j) / den; end
+        dp(j) = (D(j) - A(j) * dp(j-1)) / den;
+    end
+    M = zeros(1, n+1); M(n+1) = dp(n+1);
+    for j = n:-1:1, M(j) = dp(j) - cp(j) * M(j+1); end
+    
+    segmento = 1;
+    for j = 1:n
+        if (x(j) <= x_eval) && (x_eval <= x(j+1)), segmento = j; break; end
+    end
+    hj = h(segmento);
+    t1 = M(segmento) * ((x(segmento+1) - x_eval)^3) / (6.0 * hj);
+    t2 = M(segmento+1) * ((x_eval - x(segmento))^3) / (6.0 * hj);
+    t3 = (y(segmento) - (M(segmento) * (hj^2)) / 6.0) * ((x(segmento+1) - x_eval) / hj);
+    t4 = (y(segmento+1) - (M(segmento+1) * (hj^2)) / 6.0) * ((x_eval - x(segmento)) / hj);
+    valor = t1 + t2 + t3 + t4;
+end
