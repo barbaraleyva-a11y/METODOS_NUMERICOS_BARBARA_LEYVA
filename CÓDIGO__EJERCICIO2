@@ -1,0 +1,152 @@
+% =========================================================================
+% ESTUDIO NUMÉRICO
+% Métodos analíticos: Interpolación de Lagrange (Grado 2) y Spline Cúbico Natural
+% =========================================================================
+
+clear; clc; format compact;
+
+%% --- REGISTRO DE MEDICIONES DE LABORATORIO ---
+frec_khz = [10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, ...
+            35.0, 37.5, 40.0, 42.5, 45.0, 47.5, 50.0, 52.5, 55.0, 57.5, ...
+            60.0, 62.5, 65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5, ...
+            85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0, 102.5, 105.0, 107.5];
+
+volt_v   = [0.842, 0.911, 0.986, 1.062, 1.143, 1.227, 1.314, 1.401, 1.482, 1.551, ...
+            1.216, 1.048, 0.866, 0.689, 0.521, 0.364, 0.223, 0.103, 0.012, -0.041, ...
+            -0.057, -0.034, 0.018, 0.096, 0.197, 0.318, 0.452, 0.579, 0.700, 0.809, ...
+            0.611, 0.688, 0.756, 0.811, 0.856, 0.894, 0.926, 0.954, 0.980, 1.004];
+
+imped_ohm = [182.4, 178.9, 175.1, 171.0, 166.8, 162.7, 158.9, 155.4, 152.0, 149.0, ...
+             146.1, 145.2, 145.8, 147.3, 149.9, 153.5, 158.0, 163.2, 168.9, 174.8, ...
+             180.5, 186.2, 191.5, 196.2, 200.1, 203.1, 205.2, 206.3, 206.1, 204.7, ...
+             198.0, 194.4, 190.9, 187.8, 185.1, 183.0, 181.6, 180.8, 180.6, 180.9];
+
+f_eval1 = 41.0;
+f_eval2 = 73.0;
+
+%% --- EJECUCIÓN DE PROCESOS ---
+
+fprintf('=================================================================\n');
+fprintf('PROCESO 1: INTERPOLACIÓN DE LAGRANGE DE SEGUNDO GRADO (LOCAL)\n');
+fprintf('=================================================================\n');
+v_lag_41 = interpolacion_lagrange2(f_eval1, frec_khz, volt_v, 'V');
+z_lag_41 = interpolacion_lagrange2(f_eval1, frec_khz, imped_ohm, 'Z');
+v_lag_73 = interpolacion_lagrange2(f_eval2, frec_khz, volt_v, 'V');
+z_lag_73 = interpolacion_lagrange2(f_eval2, frec_khz, imped_ohm, 'Z');
+fprintf('\n');
+
+fprintf('=================================================================\n');
+fprintf('PROCESO 2: MODELADO GLOBAL CON SPLINE CÚBICO NATURAL\n');
+fprintf('=================================================================\n');
+v_spl_41 = interpolacion_spline(frec_khz, volt_v, f_eval1, 'V');
+z_spl_41 = interpolacion_spline(frec_khz, imped_ohm, f_eval1, 'Z');
+v_spl_73 = interpolacion_spline(frec_khz, volt_v, f_eval2, 'V');
+z_spl_73 = interpolacion_spline(frec_khz, imped_ohm, f_eval2, 'Z');
+fprintf('\n');
+
+%% --- TABLA COMPARATIVA DE RESULTADOS FINALES ---
+fprintf('TABLA COMPARATIVA DE RESULTADOS DE INTERPOLACIÓN\n');
+fprintf('+--------------------+------------------------+-------------------------+\n');
+fprintf('|   Variable (kHz)   |   Lagrange (Grado 2)   |  Spline Cúbico Natural  |\n');
+fprintf('+--------------------+------------------------+-------------------------+\n');
+fprintf('| V(41.0 kHz)        |        %10.4f          |        %10.4f           |\n', v_lag_41, v_spl_41);
+fprintf('| Z(41.0 kHz)        |        %10.4f          |        %10.4f           |\n', z_lag_41, z_spl_41);
+fprintf('+--------------------+------------------------+-------------------------+\n');
+fprintf('| V(73.0 kHz)        |        %10.4f          |        %10.4f           |\n', v_lag_73, v_spl_73);
+fprintf('| Z(73.0 kHz)        |        %10.4f          |        %10.4f           |\n', z_lag_73, z_spl_73);
+fprintf('+--------------------+------------------------+-------------------------+\n');
+
+
+%% =========================================================================
+%% FUNCIONES MATEMÁTICAS LOCALES
+%% =========================================================================
+
+function valor_aprox = interpolacion_lagrange2(p_objetivo, x_datos, y_datos, etiqueta)
+    % Determinación de índices específicos de vecindad fija para replicar tramos continuos
+    if p_objetivo == 41.0
+        nodos = [12, 13, 14]; % Índices para frecuencias [37.5, 40.0, 42.5]
+    else
+        nodos = [25, 26, 27]; % Índices para frecuencias [70.0, 72.5, 75.0]
+    end
+    
+    x0 = x_datos(nodos(1)); x1 = x_datos(nodos(2)); x2 = x_datos(nodos(3));
+    y0 = y_datos(nodos(1)); y1 = y_datos(nodos(2)); y2 = y_datos(nodos(3));
+    
+    % Polinomios base de soporte de Lagrange
+    L0 = ((p_objetivo - x1) * (p_objetivo - x2)) / ((x0 - x1) * (x0 - x2));
+    L1 = ((p_objetivo - x0) * (p_objetivo - x2)) / ((x1 - x0) * (x1 - x2));
+    L2 = ((p_objetivo - x0) * (p_objetivo - x1)) / ((x2 - x0) * (x2 - x1));
+    
+    valor_aprox = (L0 * y0) + (L1 * y1) + (L2 * y2);
+    
+    fprintf('  > Nodos [%.1f, %.1f, %.1f] -> L0=%.4f, L1=%.4f, L2=%.4f -> %s(%.1f kHz) = %.4f\n', ...
+            x0, x1, x2, L0, L1, L2, etiqueta, p_objetivo, valor_aprox);
+end
+
+function vec_sol = resolucion_thomas(diag_inf, diag_med, diag_sup, term_ind)
+    num_nodos = length(term_ind);
+    c_mod = zeros(1, num_nodos); 
+    d_mod = zeros(1, num_nodos);
+    
+    c_mod(1) = diag_sup(1) / diag_med(1);
+    d_mod(1) = term_ind(1) / diag_med(1);
+    
+    % Algoritmo de barrido de eliminación hacia adelante
+    for k = 2:num_nodos
+        w = diag_med(k) - diag_inf(k) * c_mod(k-1);
+        if k < num_nodos
+            c_mod(k) = diag_sup(k) / w;
+        end
+        d_mod(k) = (term_ind(k) - diag_inf(k) * d_mod(k-1)) / w;
+    end
+    
+    % Sustitución regresiva para determinar las incógnitas
+    vec_sol = zeros(1, num_nodos);
+    vec_sol(num_nodos) = d_mod(num_nodos);
+    for k = (num_nodos-1):-1:1
+        vec_sol(k) = d_mod(k) - c_mod(k) * vec_sol(k+1);
+    end
+end
+
+function estimacion = interpolacion_spline(x, y, objetivo, etiqueta)
+    puntos = length(x) - 1;
+    h_pasos = diff(x); 
+    
+    A_diag = zeros(1, puntos+1); 
+    B_diag = ones(1, puntos+1); 
+    C_diag = zeros(1, puntos+1); 
+    R_ind  = zeros(1, puntos+1);
+    
+    % Ensamble del sistema tridiagonal de momentos (continuidad de la derivada segunda)
+    for j = 2:puntos
+        A_diag(j) = h_pasos(j-1) / 6.0;
+        B_diag(j) = (h_pasos(j-1) + h_pasos(j)) / 3.0;
+        C_diag(j) = h_pasos(j) / 6.0;
+        R_ind(j)  = ((y(j+1) - y(j)) / h_pasos(j)) - ((y(j) - y(j-1)) / h_pasos(j-1));
+    end
+    
+    M = resolucion_thomas(A_diag, B_diag, C_diag, R_ind);
+    
+    % Localización del intervalo de pertenencia del punto analizado
+    idx_tramo = 1;
+    for j = 1:puntos
+        if (x(j) <= objetivo) && (objetivo <= x(j+1))
+            idx_tramo = j;
+            break;
+        end
+    end
+    
+    h_loc = h_pasos(idx_tramo);
+    
+    % Modelo cúbico segmentado empleando las curvaturas nodales (M)
+    comp_a = M(idx_tramo) * ((x(idx_tramo+1) - objetivo)^3) / (6.0 * h_loc);
+    comp_b = M(idx_tramo+1) * ((objetivo - x(idx_tramo))^3) / (6.0 * h_loc);
+    comp_c = (y(idx_tramo) - (M(idx_tramo) * (h_loc^2)) / 6.0) * ((x(idx_tramo+1) - objetivo) / h_loc);
+    comp_d = (y(idx_tramo+1) - (M(idx_tramo+1) * (h_loc^2)) / 6.0) * ((objetivo - x(idx_tramo)) / h_loc);
+    
+    estimacion = comp_a + comp_b + comp_c + comp_d;
+    
+    % Mapeo
+    fprintf('  > Tramo %d [%.1f a %.1f] -> M[%d]=%.4f, M[%d]=%.4f -> %s(%.1f kHz) = %.4f\n', ...
+            idx_tramo-1, x(idx_tramo), x(idx_tramo+1), idx_tramo-1, M(idx_tramo), idx_tramo, M(idx_tramo+1), etiqueta, objetivo, estimacion);
+end
